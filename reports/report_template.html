@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+
+<head>
+  <meta charset="UTF-8">
+  {% if debug %}
+    <meta http-equiv="refresh" content="3">
+  {% endif %}
+  <title>{{ report_name }}</title>
+  <style>
+    body,
+    td,
+    div,
+    p,
+    a,
+    input {
+      font-family: arial, sans-serif;
+    }
+
+    body,
+    td {
+      font-size: 13px;
+    }
+
+    a:link,
+    a:active {
+      color: #1155CC;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    a:visited {
+      color: #6611CC;
+    }
+
+    img {
+      border: 0px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-width: 800px;
+      overflow: auto;
+    }
+
+    .section-title {
+      font: 25px Open Sans, Arial, Helvetica, sans-serif;
+      color: #3a4452;
+      font-weight: 600;
+      margin-bottom: 5px;
+      padding-top: 10px;
+    }
+
+    .sub-title {
+      font: 17px Open Sans, Arial, Helvetica, sans-serif;
+      color: #3a4452;
+      letter-spacing: 0.2px;
+      padding-bottom: 5px;
+    }
+
+    .move-label {
+      color: #4db957;
+    }
+
+    .move-label-loss {
+      color: #f94145;
+    }
+
+    .holding-name {
+      font: 14px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      color: #3a4452;
+    }
+
+    .move-value {
+      font: 14px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      color: #656769;
+      text-align: right;
+    }
+
+    .move-value-loss {
+      font: 14px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      color: #eb060a;
+      text-align: right;
+    }
+
+    .move-total {
+      font: 16px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      font-weight: 600;
+      color: #656769;
+      text-align: right;
+      /* background-color:#efeded; */
+    }
+    
+    .move-total-loss {
+      font: 16px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      font-weight: 600;
+      color: #eb060a;
+      text-align: right;
+    }
+
+    .move-amount {
+      font: 14px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      color: #3a4452;
+      text-align: right;
+      width: 80px;
+    }
+
+    .divider {
+      border-bottom: 1px solid #eff0f1;
+    }
+
+    .summary-box {
+      background: #23bd68;
+      color: #fff;
+      font: bold 15px Open Sans, Arial, Helvetica, sans-serif;
+      border-radius: 3px;
+      padding: 8px 15px;
+      display: inline-block;
+    }
+
+    .summary-box-loss {
+      background: #eb060a;
+      color: #fff;
+      font: bold 15px Open Sans, Arial, Helvetica, sans-serif;
+      border-radius: 3px;
+      padding: 8px 15px;
+      display: inline-block;
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    .summary-table th,
+    .summary-table td {
+      padding: 6px;
+    }
+
+    .summary-table-header {
+      text-align: right;
+      color: #727a87;
+      padding: 2px;
+    }
+
+    .category {
+      font-weight: bold;
+      text-align: left;
+    }
+
+    .maincontent {
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .warning {
+      font: 14px Circular Std, Book, Open Sans, Arial, Helvetica, sans-serif;
+      font-weight: bold;
+      background: #eb060a;
+      color: #fff;
+      padding: 3px;
+      text-align: left;
+    }
+
+    .value_label {
+      font: 14px Open Sans, Arial, Helvetica, sans-serif;
+      color: #727a87;
+    }
+
+    /* New style for the "7 day move" span */
+    .move-period-label {
+      font: 15px Open Sans, Arial, Helvetica, sans-serif;
+      color: #727a87;
+      margin-right: 12px;
+    }
+  </style>
+</head>
+
+<!-- https://cdn-blob.investsmart.com.au/images/email/icon-upX2.png
+https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
+
+<body>
+  <div class="bodycontainer">
+    <div class="maincontent" 
+    {% if holding_display_mode == 'symbol' %}
+      style="max-width: 650px;"
+    {% else %}
+      style="max-width: 850px;"
+    {% endif %}
+    >
+      <div class="section-title">{{ report_name }}</div>
+      <div>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+          <tr>
+            <td></td>
+            <td align="right" style="text-align:right;">
+              <span class="move-period-label">{{ effective_dates['DaysDifference'] }} day move</span>
+              <span class="summary-box{% if value['PcntChange'] < 0 %}-loss{% endif %}">
+                {% if value['PcntChange'] >= 0 %} 
+                  <img src="https://res.cloudinary.com/dc7dezpqx/image/upload/v1749835196/icon-up-small_oieas2.png" style="vertical-align:bottom">
+                {% else %}
+                  <img src="https://res.cloudinary.com/dc7dezpqx/image/upload/v1749835197/icon-down-small_pzrzz5.png" style="vertical-align:top"> 
+                {% endif %}
+                {{ value['PcntChangeAbsStr'] }}
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <table class="summary-table divider">
+        <th class="category"></th>
+        <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d {{ reporting_currency_symbol }} Move</td>
+        <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d % Move</td>
+        {% for asset_class in asset_classes %}
+          <tr{% if loop.index0 % 2 == 0 %} style="background-color:#f7f7f7;"{% endif %}>
+            <th class="category">{{ asset_class['Class'] }}</th>
+            {% if asset_class['PcntChange'] >= 0 %}
+              <td class="move-value">{{ asset_class['ValueChangeStr'] }}</td>
+              <td class="move-value">{{ asset_class['PcntChangeStr'] }}</td>
+            {% else %}
+              <td class="move-value-loss">{{ asset_class['ValueChangeStr'] }}</td>
+              <td class="move-value-loss">{{ asset_class['PcntChangeStr'] }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        <tr>
+          <th class="move-total">TOTAL</th>
+            {% if value['ValueChange'] >= 0 %}
+              <td class="move-total" style="font-weight:600;">{{ value['ValueChangeStr'] }}</td>
+              <td class="move-total" style="font-weight:600;">{{ value['PcntChangeStr'] }}</td>
+            {% else %}
+              <td class="move-total-loss" style="font-weight:600;">{{ value['ValueChangeStr'] }}</td>
+              <td class="move-total-loss" style="font-weight:600;">{{ value['PcntChangeStr'] }}</td>
+            {% endif %}
+        </tr>
+        <tr style="border-top:1px solid #eff0f1;">
+          <td colspan="2" style="text-align:right; padding-top: 20px; padding-bottom: 20px">
+            <span class="value_label"">Portfolio Value:</span>
+            <span class="summary-box">{{ cost_basis['CurrentStr'] }}</span>
+          </td>
+          <td style="text-align:right; padding-right: 0px;">
+            <span class="value_label"">Vs Cost Basis:</span>
+            {% if cost_basis['Return'] >= 0 %}
+              <span class="summary-box">{{ cost_basis['ReturnStr'] }}</span>
+            {% else %}
+              <span class="summary-box-loss">{{ cost_basis['ReturnStr'] }}</span>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:10px;">
+        <tr>
+          <td valign="top" width="50%" style="padding-right:15px;">
+            <table class="summary-table divider">
+              <tr>
+                <td class="summary-table-header">
+                  <div class="sub-title" style="margin-bottom: 4px; text-align: left;">
+                    <strong>Top </strong>
+                    <span class="move-label"> Winners</span>
+                  </div>
+                </td>
+                <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d % Move</td>
+                <td class="summary-table-header">Value</td>
+              </tr>
+              {% for entry in winners %}
+              <tr>
+                <td class="holding-name">{{ entry['ShortDisplayName'] }}</td>
+                {% if entry['PcntChange'] >= 0 %}
+                  <td class="move-value">{{ entry['PcntChangeStr'] }}</td>
+                {% else %}
+                  <td class="move-value-loss">{{ entry['PcntChangeStr'] }}</td>
+                {% endif %}
+                <td class="move-amount">{{ entry['Current']['ValueStr'] }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </td>
+          <td valign="top" width="50%" style="padding-left:15px;">
+            <!-- Top Movers (Losers) -->
+            <table class="summary-table divider">
+              <tr>
+                <td class="summary-table-header">
+                  <div class="sub-title" style="margin-bottom: 4px; text-align: left;">
+                    <strong>Top </strong>
+                    <span class="move-label-loss"> Losers</span>
+                  </div>
+
+                </td>
+                <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d % Move</td>
+                <td class="summary-table-header">Value</td>
+              </tr>
+              {% for entry in losers %}
+              <tr>
+                <td class="holding-name">{{ entry['ShortDisplayName'] }}</td>
+                {% if entry['PcntChange'] >= 0 %}
+                  <td class="move-value">{{ entry['PcntChangeStr'] }}</td>
+                {% else %}
+                  <td class="move-value-loss">{{ entry['PcntChangeStr'] }}</td>
+                {% endif %}
+                <td class="move-amount">{{ entry['Current']['ValueStr'] }}</td>
+              </tr>
+              {% endfor %}
+            </table>
+          </td>
+        </tr>
+      </table>
+      {% if price_misses > 0 %}
+        <div class="warning" style="padding-left: 10px;">WARNING: {{price_misses}} price lookup misses occurred during valuation.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+
+</html>

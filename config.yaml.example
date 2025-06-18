@@ -1,0 +1,61 @@
+# Config file for the Portfolio Performance Reporting app
+
+Portfolio:
+  # The name of the report.
+  ReportName: "Portfolio Performance Report"
+  # Which format to use when sending the report. Options: html, text, both
+  ReportType: "html"
+  # What is the base currency for the portfolio? This is used to convert all values to a common currency.
+  ReportingCurrency: AUD
+  # What is the symbol for the base currency? This is used to display the currency in the report.
+  ReportingCurrencySymbol: $
+  # Compare the current portfolio valuation to value [PriorValuationDays] days prior. Default is 7 days.
+  PriorValuationDays: 14
+  # Number of individual securities to list in the winners and losers section.
+  WinnersAndLosers: 5
+  # When individual securities are listed in the report, how should they be displayed? One of: symbol; name; both (default)
+  HoldingsDisplayMode: symbol
+  # Maximum number of times we can fail to get a price for a security before we report a critical error.
+  MaxPriceMisses: 2
+  # If a security has less than this many units, we will not report it in the portfolio valuation.
+  MinUnitsHeld: 0.01
+  
+Files:
+  # The file name to log progress to. Leave blankif you do not want to log to a file.
+  LogfileName: logfile.log
+  # Truncate the log file to the last # lines when starting the app. If 0, the log file will not be truncated.
+  LogfileMaxLines: 500
+  # How much information do we write to the log file. One of: none; error; warning; summary; detailed; debug; all
+  LogfileVerbosity: detailed
+  # How much information do we write to the console. One of: error; warning; summary; detailed; debug; all
+  ConsoleVerbosity: detailed
+  # A list of price data CSV files to be read for symbol price history. Optionally specify MaxAge in days to limit how old the data can be.
+  # Each file should have a header row with the following columns: Symbol, Date, Name, Currency, Price
+  PriceDataFiles:
+    - DataFile: price_data.csv
+      MaxAge: 4
+  # The Excel file(s) to import the portfolio from. Each entry in the list should specify the DataFile, NamedLocation, and LocationType.
+  # DataFile: The full or relative path to an Excel file. Each table to be imported must have the following columns: Symbol, Name, Class, Currency, Units Held
+  #            Optionally the last column can be Cost Basis (stated in the ReportingCurrency)
+  # NamedLocation: The named location of the portfolio data in the Excel file.
+  # LocationType: The type of location reference for the PortfolioData parameter. Must be one of: sheet, table or range.
+  PortfolioImport:
+    - DataFile: portfolio.xlsx
+      NamedLocation: TableInvestments
+      LocationType: table
+  # Optional file to write the portfolio valuation totals to. If not specified, no file will be written.
+  PortfolioValuationFile: reports/portfolio_valuation.csv
+  # The template for the HTML format report.
+  ReportHTMLTemplate: reports/report_template.html
+  # If true, keep a file copy of the text and/or HTML reports after sending via email.
+  SaveReportOutputFiles: True
+
+# The email settings for sending the report.
+Email:
+  EnableEmail: True
+  SendEmailsTo: <Your email address here>
+  SMTPServer: <Your SMTP server here>
+  SMTPPort: 587
+  SMTPUsername: <Your SMTP username here>
+  SMTPPassword: <Your SMTP password here>
+  SubjectPrefix: 

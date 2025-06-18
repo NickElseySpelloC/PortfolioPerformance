@@ -1,0 +1,13 @@
+[project]
+name = "portfolioperformance"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "cloudinary>=1.44.0",
+    "jinja2>=3.1.6",
+    "openpyxl>=3.1.5",
+    "pandas>=2.2.3",
+    "sc-utility>=1.1.7",
+]
