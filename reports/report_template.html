@@ -311,6 +311,15 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
           </td>
         </tr>
       </table>
+      {% if value_history_chart %}
+        <table width="100%" border="1" cellspacing="0" cellpadding="0" style="margin-bottom:5px; border-color: lightgray;">
+          <tr>
+            <td>
+              <img src="{{ value_history_chart }}" alt="Portfolio Value History Chart" style="max-width:100%; height:auto;">          
+            </td>
+          </tr>
+        </table>
+      {% endif %}
       {% if price_misses > 0 %}
         <div class="warning" style="padding-left: 10px;">WARNING: {{price_misses}} price lookup misses occurred during valuation.</div>
       {% endif %}

@@ -20,6 +20,24 @@ Portfolio:
   # If a security has less than this many units, we will not report it in the portfolio valuation.
   MinUnitsHeld: 0.01
   
+HistoryChart:
+  # If true a portfolio valuation chart will be uploaded to Cloudinary and included in the report.
+  EnableCloudinary: True
+  # Your Cloudinary cloud name. Find this at Settings > API Keys at the top of the page.
+  CloudName: "<Your Cloud Name here>"
+  # The Cloudinary API key.
+  APIKey: "<Your API Key here>"
+  # The Cloudinary API secret.
+  APISecret: "<Your API Secret here>"
+  # The folder in Cloudinary to upload the report to.
+  UploadFolder: portfolio_reports
+  # The title to use for the history chart.
+  ChartTitle: "Portfolio Valuation (last 12 months)"
+  # Branding text to use in the chart
+  BrandText: "©Spello Consulting"
+  # Number of prior days to include in the history chart.
+  ChartNumberOfDays: 365
+
 Files:
   # The file name to log progress to. Leave blankif you do not want to log to a file.
   LogfileName: logfile.log

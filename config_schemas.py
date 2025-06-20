@@ -1,5 +1,6 @@
 """Configuration schemas for use with the SCConfigManager class."""
 
+
 class ConfigSchema:
     """Base class for configuration schemas."""
 
@@ -15,6 +16,16 @@ class ConfigSchema:
                 "HoldingsDisplayMode": "symbol",
                 "MaxPriceMisses": 2,
                 "MinUnitsHeld": 0.01,
+            },
+            "HistoryChart": {
+                "EnableCloudinary": False,
+                "CloudName": "<Your Cloud Name here>",
+                "APIKey": "<Your API Key here>",
+                "APISecret": "<Your API Secret here>",
+                "UploadFolder": "portfolio_reports",
+                "ChartTitle": "Portfolio Valuation (last 12 months)",
+                "BrandText": "©Spello Consulting",
+                "ChartNumberOfDays": 365,
             },
             "Files": {
                 "LogfileName": "logfile.log",
@@ -54,6 +65,11 @@ class ConfigSchema:
         }
 
         self.placeholders = {
+            "HistoryChart": {
+                "CloudName": "<Your Cloud Name here>",
+                "APIKey": "<Your API Key here>",
+                "APISecret": "<Your API Secret here>",
+            },
             "Email": {
                 "SendEmailsTo": "<Your email address here>",
                 "SMTPUsername": "<Your SMTP username here>",
@@ -74,6 +90,19 @@ class ConfigSchema:
                     "HoldingsDisplayMode": {"type": "string", "required": False, "nullable": True},
                     "MaxPriceMisses": {"type": "number", "required": False, "nullable": True},
                     "MinUnitsHeld": {"type": "number", "required": False, "nullable": True},
+                }
+            },
+            "HistoryChart": {
+                "type": "dict",
+                "schema": {
+                    "EnableCloudinary": {"type": "boolean", "required": True},
+                    "CloudName": {"type": "string", "required": False, "nullable": True},
+                    "APIKey": {"type": "string", "required": False, "nullable": True},
+                    "APISecret": {"type": "string", "required": False, "nullable": True},
+                    "UploadFolder": {"type": "string", "required": False, "nullable": True},
+                    "ChartTitle": {"type": "string", "required": False, "nullable": True},
+                    "BrandText": {"type": "string", "required": False, "nullable": True},
+                    "ChartNumberOfDays": {"type": "number", "required": False, "nullable": True, "min": 1, "max": 365},
                 }
             },
             "Files": {
@@ -138,4 +167,3 @@ class ConfigSchema:
                 },
             },
         }
-

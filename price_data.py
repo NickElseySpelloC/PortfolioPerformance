@@ -9,7 +9,13 @@ from sc_utility import DateHelper
 
 class PriceDataManager:
     def __init__(self, config, logger):
-        """Initializes the PriceDataManager with configuration and logger."""
+        """
+        Initializes the PriceDataManager with configuration and logger.
+
+        Args:
+            config: Configuration object containing file paths and settings.
+            logger: Logger object for logging messages and errors.
+        """
         self.config = config
         self.logger = logger
         self.price_data = []
@@ -43,7 +49,7 @@ class PriceDataManager:
                         self.logger.log_message(f"Invalid date value for {entry.get('Symbol')} on {entry.get('Date')}", "error")
 
                         # Remove this entry from the data if the date is invalid
-                        data.remove(entry)
+                        data.remove(entry)  # noqa: B909
                         continue
                 # Convert the Price column to a float
                 if "Price" in entry:
@@ -52,7 +58,7 @@ class PriceDataManager:
                     except (TypeError, ValueError):
                         self.logger.log_message(f"Invalid price value for {entry.get('Symbol')} on {entry.get('Date')}", "error")
                         # Remove this entry from the data if the date is invalid
-                        data.remove(entry)
+                        data.remove(entry)  # noqa: B909
                         continue
             if data is None:
                 self.logger.log_fatal_error(f"Failed to read price data from {file_path}")
@@ -63,9 +69,16 @@ class PriceDataManager:
         # Sort the price data by descending date dand symbol
         self.price_data.sort(key=lambda x: (x.get("Date", ""), x.get("Symbol", "")), reverse=True)
 
-
     def _read_csv(self, file_path):
-        """Reads a CSV file and returns its content as a list of dictionaries."""
+        """
+        Reads a CSV file and returns its content as a list of dictionaries.
+
+        Args:
+            file_path (Path): The path to the CSV file to read.
+
+        Returns:
+            data (list): A list of dictionaries representing the rows in the CSV file.
+        """
         data = []
         if file_path.exists():
             try:
@@ -80,7 +93,16 @@ class PriceDataManager:
         return None
 
     def get_price_on_date(self, symbol: str, date: date) -> tuple[float | None, str | None]:
-        """Returns the price for a given date from the imported price data."""
+        """
+        Returns the price for a given date from the imported price data.
+
+        Args:
+            symbol (str): The symbol for which to get the price.
+            date (date): The date for which to get the price.
+
+        Returns:
+            tuple: A tuple containing the price (float) and currency (str) if available, otherwise None.
+        """
         if symbol.lower() == "cash":
             return 1.0, None  # Cash is always valued at 1.0
 

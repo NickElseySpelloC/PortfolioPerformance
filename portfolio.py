@@ -1,18 +1,52 @@
 """Manages the import and processing of portfolio data."""
 
 import csv
+import operator
+import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
+
+import cloudinary
+import cloudinary.uploader
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import pandas as pd
+from dotenv import load_dotenv
 
 # import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateError
 from sc_utility import DateHelper, ExcelReader
 
 
+def currency_thousands(x, _):
+    """
+    Formats a number as a currency string with thousands separator.
+
+    Used by matplotlib to format y-axis labels.
+
+    Args:
+        x (float): The number to format.
+        _: Unused parameter, required by matplotlib's FuncFormatter.
+
+    Returns:
+        str: The formatted currency string.
+    """
+    return f"${x / 1000:,.0f}k"
+
+
 class PortfolioManager:
     """Manages the portfolio valuation and reporting for stock holdings."""
 
     def __init__(self, config, logger, price_data):
-        """Initializes the PortfolioManager with configuration and logger."""
+        """
+        Initializes the PortfolioManager with configuration and logger.
+
+        Args:
+            config: An instance of the SCConfigManager class containing configuration settings.
+            logger: An instance of the SCLogger class for logging messages.
+            price_data: An instance of the PriceDataManager class with stock prices loaded.
+        """
         self.config = config
         self.logger = logger
         self.price_data = price_data    # An instance of the PriceDataManager class with stock prices loaded
@@ -25,6 +59,8 @@ class PortfolioManager:
 
         # Save the path to the Portfolio Valuation file
         self.portfolio_valuation_file = None
+        self.df_value_history = None  # DataFrame to hold the value history of the portfolio
+        self.value_history_chart = None  # Path to the value history chart image
         csv_file_str = self.config.get("Files", "PortfolioValuationFile")
         if csv_file_str is not None:
             # Resolve the file path using the configured method
@@ -68,7 +104,8 @@ class PortfolioManager:
         """
         Imports portfolio data from the configured Excel files.
 
-        param data_import: A dictionary containing the import configuration.
+        Args:
+            data_import (dict): A dictionary containing the import configuration.
         """
         file_path = Path(data_import.get("DataFile"))
         data_source_name = data_import.get("NamedLocation", "Portfolio")
@@ -77,7 +114,7 @@ class PortfolioManager:
 
         self.logger.log_message(f"Importing portfolio data from {data_source_type} {data_source_name} in {file_path}", "detailed")
 
-        #file_path is a full path to an Excel file. Import the data from the "TablePortfolio" table in the file.
+        # file_path is a full path to an Excel file. Import the data from the "TablePortfolio" table in the file.
         try:
             # Create an instance of the ExcelReader class to read the Excel file
             excel_reader = ExcelReader(file_path)
@@ -101,7 +138,7 @@ class PortfolioManager:
             # Create a PortfolioValuation object and load the data
             for entry in portfolio_data:
                 if entry.get("Units Held", 0.0) >= min_units_held:
-                    holding = self.new_holding_object()
+                    holding = self.new_holding()
                     holding["Symbol"] = entry.get("Symbol", entry.get("Code"))
                     holding["Name"] = entry.get("Name", self.price_data.get_symbol_name(holding["Symbol"]))
                     holding["ShortDisplayName"] = self.abbreviate_holding_name(holding["Name"], holding["Symbol"])
@@ -113,8 +150,13 @@ class PortfolioManager:
 
             self.logger.log_message(f"Imported portfolio data from {file_path}", "summary")
 
-    def new_holding_object(self):
-        """Creates a new holding object with default values."""
+    def new_holding(self) -> dict:  # noqa: PLR6301
+        """
+        Creates a new holding object with default values.
+
+        Returns:
+            new_holding (dict): A dictionary representing a new holding with default values.
+        """
         new_holding = {
             "Symbol": None,           # Stock code or symbol
             "Name": None,           # Name of the stock
@@ -141,7 +183,12 @@ class PortfolioManager:
         return new_holding
 
     def add_holding(self, holding: dict):
-        """Adds a holding to the portfolio valuation."""
+        """
+        Adds a holding to the portfolio valuation.
+
+        Args:
+            holding (dict): A dictionary representing the holding to be added.
+        """
         self.holdings.append(holding)
         self.logger.log_message(f"Added holding: {holding['Symbol']} with {holding['Units Held']} units", "debug")
 
@@ -149,9 +196,12 @@ class PortfolioManager:
         """
         Abbreviates the holding name to a shorter version if it exceeds the maximum length.
 
-        param name: The full name of the holding.
-        param code: The stock code or symbol of the holding.
-        returns: The abbreviated name if necessary, otherwise the original name.
+        Args:
+            name (str): The full name of the holding.
+            code (str): The stock code or symbol of the holding.
+
+        Returns:
+            name (str): The abbreviated name if necessary, otherwise the original name.
         """
         if self.holding_display_mode == "symbol":
             return code
@@ -167,8 +217,11 @@ class PortfolioManager:
         """
         Calculates the total value of the portfolio as at a given date.
 
-        paaram as_at_date: The date to value the portfolio as at. If None, uses today's date and assumes a current valuation.
-        returns: True if the valuation was successful, False otherwise. Also returns the number of price lookup misses.
+        Args:
+            mode(str): The mode of the valuation, either "Current" or "Prior".
+
+        Returns:
+            result (bool): True if the valuation was successful, False otherwise. Also returns the number of price lookup misses.
         """
         max_price_misses = self.config.get("Portfolio", "MaxPriceMisses", default=2)
         self.price_misses = 0
@@ -224,7 +277,7 @@ class PortfolioManager:
                     self.cost_basis["Current"] += cost_basis
                 self.logger.log_message(f"{symbol}: {units_held}units * {price:2f} * FX{fx_rate:6f} = {symbol_value}", "debug")
 
-            #Now increment the asset class list if it doesn't already exist
+            # Now increment the asset class list if it doesn't already exist
             self.add_asset_class_value(
                 asset_class=entry.get("Class", "Unknown"),
                 mode=mode,
@@ -237,7 +290,6 @@ class PortfolioManager:
 
         self.logger.log_message(f"Valuing portfolio as at {self.effective_dates[mode]} at {self.reporting_currency_symbol}{self.value[mode]:,.0f}", "detailed")
 
-
         self.save_portfolio_valuation(mode)
         return True
 
@@ -245,9 +297,13 @@ class PortfolioManager:
         """
         Adds a value to the specified asset class in the portfolio.
 
-        param asset_class: The asset class to add the value to.
-        param mode: The mode of the valuation, either "Current" or "Prior".
-        param value: The value to add to the asset class.
+        Args:
+            asset_class (str): The asset class to add the value to.
+            mode (str): The mode of the valuation, either "Current" or "Prior".
+            value(float): The value to add to the asset class.
+
+        Returns:
+            result (bool): True if the asset class was added or updated successfully, False otherwise.
         """
         # Check if the asset class already exists
         for entry in self.asset_classes:
@@ -277,8 +333,11 @@ class PortfolioManager:
         """
         Saves the current and prior portfolio valuations to a CSV file if configured to do so.
 
-        param mode: The mode of the valuation, either "Current" or "Prior".
-        returns: True if the valuation was saved successfully, False otherwise.
+        Args:
+            mode (str): The mode of the valuation, either "Current" or "Prior".
+
+        Returns:
+            result (bool): True if the valuation was saved successfully, False otherwise.
         """
         if self.portfolio_valuation_file is None:
             self.logger.log_message("Portfolio valuation file is not configured. Skipping save.", "detailed")
@@ -291,7 +350,7 @@ class PortfolioManager:
 
         # Read existing CSV and remove today's rows
         existing_rows = []
-        header = ["Date","Valuation"]
+        header = ["Date", "Valuation"]
         if self.portfolio_valuation_file.exists():
             with self.portfolio_valuation_file.open(newline="", encoding="utf-8") as csvfile:
                 reader = csv.reader(csvfile)
@@ -337,7 +396,8 @@ class PortfolioManager:
         """
         Calculates the change in portfolio valuation from prior to current.
 
-        returns: True if the valuation change was calculated successfully, False otherwise.
+        Returns:
+            result (bool): True if the valuation change was calculated successfully, False otherwise.
         """
         self.effective_dates["DaysDifference"] = DateHelper.days_between(
             self.effective_dates["Prior"],
@@ -348,7 +408,7 @@ class PortfolioManager:
             self.logger.log_message("No prior valuation available. Cannot calculate valuation change.", "error")
             return False
 
-        #String values for the current and prior valuations
+        # String values for the current and prior valuations
         self.value["CurrentStr"] = self.display_cash(self.value["Current"], "abs")
         self.value["PriorStr"] = self.display_cash(self.value["Prior"], "abs")
 
@@ -369,7 +429,13 @@ class PortfolioManager:
         return True
 
     def calculate_winners_and_losers(self) -> bool:
-        """Calculates the top # winners and losers in the portfolio based on current valuation."""
+        """
+        Calculates the top # winners and losers in the portfolio based on current valuation.
+
+        Returns:
+            result (bool): True if winners and losers were calculated successfully, False otherwise.
+        """
+        self.winners = []
         if not self.holdings:
             self.logger.log_message("No holdings to evaluate for winners and losers.", "warning")
             return False
@@ -396,7 +462,7 @@ class PortfolioManager:
             entry["PcntChangeStr"] = self.display_percentage(percent_change, "delta")
 
         # Sort holdings by percentage change
-        self.holdings.sort(key=lambda x: x["PcntChange"], reverse=True)
+        self.holdings.sort(key=operator.itemgetter("PcntChange"), reverse=True)
         # Flag the top winners
         for i, entry in enumerate(self.holdings):
             self.winners.append(entry)
@@ -410,7 +476,7 @@ class PortfolioManager:
                 break
 
         # Sort holdings by symbol change
-        self.holdings.sort(key=lambda x: x["Symbol"])
+        self.holdings.sort(key=operator.itemgetter("Symbol"))
 
         return True
 
@@ -434,14 +500,18 @@ class PortfolioManager:
 
         # Sort asset classes by name
         # self.asset_classes.sort(key=lambda x: x["PcntChange"], reverse=True)
-        self.asset_classes.sort(key=lambda x: x["Class"])
+        self.asset_classes.sort(key=operator.itemgetter("Class"))
 
     def display_cash(self, value: float, mode: str = "normal") -> str:
         """
         Formats the cash value for display.
 
-        param value: The cash value to format.
-        param mode: The display mode, one of abs, delta, normal.
+        Args:
+            value (float): The cash value to format.
+            mode (str): The display mode, one of abs, delta, normal.
+
+        Returns:
+            value (str): The formatted cash value as a string.
         """
         currency_symbol = self.reporting_currency_symbol
         if value is None:
@@ -464,12 +534,16 @@ class PortfolioManager:
             return f"-{currency_symbol}{abs(value):,.0f}"
         return f"{currency_symbol}{value:,.0f}"
 
-    def display_percentage(self, value: float, mode: str = "normal") -> str:
+    def display_percentage(self, value: float, mode: str = "normal") -> str:  # noqa: PLR6301
         """
         Formats the percentage value for display.
 
-        param value: The cash value to format.
-        param mode: The display mode, one of abs, delta, normal.
+        Args:
+            value (float): The cash value to format.
+            mode (str): The display mode, one of abs, delta, normal.
+
+        Returns:
+            value (str): The formatted percentage value as a string.
         """
         if value is None:
             return "N/A"
@@ -541,12 +615,166 @@ class PortfolioManager:
             self.logger.log_message(f"Deleting the intermediary report file {report_path}", "debug")
             report_path.unlink()
 
+    def get_value_history(self) -> bool:
+        """
+        Retrieves the historical values of the portfolio from the configured valuation file.
+
+        Returns:
+            result (bool): True if the historical values were retrieved successfully, False otherwise.
+        """
+        if self.portfolio_valuation_file is None:
+            self.logger.log_message("Portfolio valuation file is not configured. Skipping value history retrieval.", "debug")
+            return False
+
+        if not self.portfolio_valuation_file.exists():
+            self.logger.log_message("Portfolio valuation file not yet available. Skipping value history retrieval.", "debug")
+            return False
+
+        # Load and parse the valuation history CSV
+        try:
+            df_values = pd.read_csv(self.portfolio_valuation_file, dayfirst=True)
+
+        except pd.errors.EmptyDataError:
+            self.logger.log_fatal_error(f"Portfolio valuation file {self.portfolio_valuation_file} is empty.")
+            return False
+
+        df_values["Date"] = pd.to_datetime(df_values["Date"], format="%Y-%m-%d")
+        df_values = df_values.sort_values("Date")
+
+        # Filter to last 365 days
+        cutoff_days = self.config.get("HistoryChart", "ChartNumberOfDays", default=365)
+        # cutoff_date = DateHelper.today_add_days(-cutoff_days)
+        # cutoff_date = datetime.combine(cutoff_date, datetime.min.time())
+        cutoff_date = datetime.now() - timedelta(days=cutoff_days)  # noqa: DTZ005
+        self.df_value_history = df_values[df_values["Date"] >= cutoff_date]
+
+        return True
+
+    def generate_value_chart(self) -> bool:  # noqa: PLR0915
+        """
+        Generates a value chart of the portfolio valuation.
+
+        Returns:
+            result (bool): True if the chart was generated successfully, False otherwise.
+        """
+        if not self.config.get("HistoryChart", "EnableCloudinary", default=False):
+            self.logger.log_message("Cloudinary is not enabled for history chart generation. Skipping chart generation.", "debug")
+            return False
+
+        if not self.get_value_history():
+            # No portfolio value history available, already logged
+            return False
+
+        if self.portfolio_valuation_file is None:
+            self.logger.log_message("Portfolio valuation file is not configured. Skipping value history retrieval.", "debug")
+            return False
+
+        # Load Cloudinary credentials
+        try:
+            load_dotenv()
+
+            cloudinary.config(
+                cloud_name=self.config.get("HistoryChart", "CloudName"),
+                api_key=self.config.get("HistoryChart", "APIKey"),
+                api_secret=self.config.get("HistoryChart", "APISecret"),
+            )
+        except cloudinary.exceptions.Error as e:
+            self.logger.log_fatal_error(f"Failed to configure Cloudinary: {e}")
+            return False
+
+        # Plotting
+        plt.figure(figsize=(12, 6))
+        ax = plt.gca()
+
+        # Line plot with branding color
+        ax.plot(
+            self.df_value_history["Date"],
+            self.df_value_history["Valuation"],
+            color="#1f77b4", linewidth=2.5, marker="o", markersize=5, label="Value"
+        )
+
+        # Styling
+        title = self.config.get("HistoryChart", "ChartTitle", default="Portfolio Valuation (last 12 months)")
+        ax.set_title(title, fontsize=14, fontweight="bold", color="darkgray")
+        ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+
+        # Format x-axis dates
+        # ax.set_xlabel("Date", fontsize=12)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+        plt.xticks(rotation=45, ha="right")
+
+        # Format y-axis as currency
+        ax.set_ylabel("Net Value", fontsize=12)
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(currency_thousands))
+
+        # Borders
+        # plt.tight_layout(pad=1.0)  # Automatically adjusts spacing, 'pad' controls padding
+        plt.subplots_adjust(left=0.08, right=0.98, top=0.92, bottom=0.12)
+
+        # Remove chart frame spines
+        for spine in ["top", "right"]:
+            ax.spines[spine].set_visible(False)
+
+        # Add Spello Consulting branding text or logo
+        brand_text = self.config.get("HistoryChart", "BrandText", default="©Spello Consulting")
+        if brand_text:
+            plt.text(
+                0.99, 0.02,
+                "©Spello Consulting",
+                fontsize=10,
+                color="gray",
+                ha="right",
+                va="bottom",
+                transform=ax.transAxes
+            )
+
+        # Save image with unique filename
+        image_filename = f"reports/valuation_{uuid.uuid4().hex}.png"
+        plt.savefig(image_filename)
+        plt.close()
+
+        # Upload to Cloudinary
+        try:
+            upload_result = cloudinary.uploader.upload(image_filename, folder="portfolio_charts/")
+            image_url = upload_result["secure_url"]
+        except cloudinary.exceptions.AuthorizationRequired as e:
+            self.logger.log_fatal_error(f"Cloudinary authorization error when uploading chart image: {e}")
+        except cloudinary.exceptions.NotFound as e:
+            self.logger.log_fatal_error(f"Cloudinary resource not found error when uploading chart image: {e}")
+        except cloudinary.exceptions.BadRequest as e:
+            self.logger.log_fatal_error(f"Cloudinary bad request error when uploading chart image: {e}")
+        except cloudinary.exceptions.Error as e:
+            error_text = str(e)
+            # Find the start of the HTML and truncate before it
+            html_start = error_text.find("b'<!DOCTYPE html>")
+            if html_start != -1:
+                error_text = error_text[:html_start].strip()
+            self.logger.log_fatal_error(f"Cloudinary error when uploading chart image: {e}")
+        else:
+            self.logger.log_message(f"Chart image uploaded to Cloudinary: {image_url}", "debug")
+            self.value_history_chart = image_url
+
+            # If saving reports locally is enabled, rename the image file
+            if self.config.get("Files", "SaveReportOutputFiles", default=True):
+                Path("reports/valuation.png").unlink(missing_ok=True)  # Remove any existing file
+                Path(image_filename).rename("reports/valuation.png")
+            else:
+                self.logger.log_message(f"Deleting the intermediary chart file {image_filename}", "debug")
+                Path(image_filename).unlink(missing_ok=True)
+
+        return True
+
     def send_html_report(self) -> bool:
         """
         Generates an HTML report of the portfolio valuation.
 
-        This is a placeholder for future implementation.
+        Returns:
+            result (bool): True if the HTML report was generated and sent successfully, False otherwise.
         """
+        # Generate the value chart if not already done
+        if self.generate_value_chart():
+            self.logger.log_message("Value chart generated successfully.", "debug")
+
         # Get the path to the HTML report file
         report_template_path = self.config.select_file_location(self.config.get("Files", "ReportHTMLTemplate", default=None))
         report_path = self.config.select_file_location("reports/PortfolioValuationReport.html")
@@ -565,7 +793,7 @@ class PortfolioManager:
         report_template_folder = Path(report_template_path).parent
         report_template_filename = Path(report_template_path).name
 
-        #Create a Jinja2 environment and load the template
+        # Create a Jinja2 environment and load the template
         env = Environment(
             loader=FileSystemLoader(report_template_folder),
             autoescape=True

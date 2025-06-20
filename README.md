@@ -86,6 +86,16 @@ The script uses the *config.yaml* YAML file for configuration. An example of inc
         MaxPriceMisses: 2
         MinUnitsHeld: 0.01
     
+    HistoryChart:
+      EnableCloudinary: True
+      CloudName: "<Your Cloud Name here>"
+      APIKey: "<Your API Key here>"
+      APISecret: "<Your API Secret here>"
+      UploadFolder: portfolio_reports
+      ChartTitle: "Portfolio Valuation (last 12 months)"
+      BrandText: "©Spello Consulting"
+      ChartNumberOfDays: 365
+
     Files:
         LogfileName: logfile.log
         LogfileMaxLines: 500
@@ -120,6 +130,7 @@ The script uses the *config.yaml* YAML file for configuration. An example of inc
 
 ## Configuration Parameters
 ### Section: Portfolio
+
 | Parameter | Description | 
 |:--|:--|
 | ReportName | The name of the report. |
@@ -131,6 +142,21 @@ The script uses the *config.yaml* YAML file for configuration. An example of inc
 | HoldingsDisplayMode | When individual securities are listed in the report, how should they be displayed? One of: symbol; name; both (default) |
 | MaxPriceMisses | Maximum number of times we can fail to get a price for a security before we report a critical error. | 
 | MinUnitsHeld | If a security has less than this many units, we will not report it in the portfolio valuation. | 
+
+### Section: HistoryChart
+
+Optionally you can include a line chart showing the historic value of your portfolio. To use this feature you will need to setup a free Cloudinary (cloudinary.com) account that the app will use to host the chart images which will then be included in the HTML format email. Once you have your account, go to Settings > API Keys and create a new API key for this app. Note the Cloud Name (top of that page), the API Key and API Secret and configure those values in this section of the config file.
+
+| Parameter | Description | 
+|:--|:--|
+| EnableCloudinary | If true a portfolio valuation chart will be uploaded to Cloudinary and included in the report. |
+| CloudName | Your Cloudinary cloud name. Find this at Settings > API Keys at the top of the page. |
+| APIKey | Your Cloudinary API Key for this app. |
+| APISecret | Your Cloudinary API Secret for this app. |
+| UploadFolder | The folder in Cloudinary to upload the report to. |
+| ChartTitle | The title to use for the history chart. |
+| BrandText | Branding text to use in the chart. |
+| ChartNumberOfDays | Number of prior days to include in the history chart. Defaults to 365 |
 
 ### Section: Files
 

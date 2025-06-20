@@ -9,6 +9,7 @@ from price_data import PriceDataManager
 
 CONFIG_FILE = "config.yaml"
 
+
 def main():
     """Main function to run the Portfolio Performance app."""
     # Get our default schema, validation schema, and placeholders
@@ -33,7 +34,7 @@ def main():
         print(f"Logger initialisation error: {e}", file=sys.stderr)
         return
 
-    logger.log_message("Starting Portfolio Performance app" , "summary")
+    logger.log_message("Starting Portfolio Performance app", "summary")
 
     # Setup email
     logger.register_email_settings(config.get_email_settings())
@@ -58,7 +59,7 @@ def main():
     # And send out the valuation change report
     if portfolio.report_type in {"text", "both"}:
         portfolio.send_text_report()
-    if portfolio.report_type in ("html", "both"):
+    if portfolio.report_type in {"html", "both"}:
         portfolio.send_html_report()
 
     # If the prior run fails, send email that this run worked OK
