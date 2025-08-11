@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 # import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateError
-from sc_utility import DateHelper, ExcelReader
+from sc_utility import DateHelper, ExcelReader, SCCommon
 
 
 def currency_thousands(x, _):
@@ -65,7 +65,7 @@ class PortfolioManager:
         csv_file_str = self.config.get("Files", "PortfolioValuationFile")
         if csv_file_str is not None:
             # Resolve the file path using the configured method
-            self.portfolio_valuation_file = self.config.select_file_location(csv_file_str)
+            self.portfolio_valuation_file = SCCommon.select_file_location(csv_file_str)
 
         # Initialize the portfolio
         self.holdings = []  # List of holding dict objects
@@ -571,7 +571,7 @@ class PortfolioManager:
 
     def send_text_report(self):
         """Issues a report summarizing the portfolio valuation changes."""
-        report_path = self.config.select_file_location("reports/PortfolioValuationReport.txt")
+        report_path = SCCommon.select_file_location("reports/PortfolioValuationReport.txt")
 
         summary_message = f"Portfolio {self.effective_dates["DaysDifference"]} day move: {self.display_cash(self.value['ValueChange'], "delta")} ({self.display_percentage(self.value['PcntChange'], "delta")}). "
         summary_message += f"Current valuation: {self.display_cash(self.value['Current'])}."
@@ -780,8 +780,8 @@ class PortfolioManager:
             self.logger.log_message("Value chart generated successfully.", "debug")
 
         # Get the path to the HTML report file
-        report_template_path = self.config.select_file_location(self.config.get("Files", "ReportHTMLTemplate", default=None))
-        report_path = self.config.select_file_location("reports/PortfolioValuationReport.html")
+        report_template_path = SCCommon.select_file_location(self.config.get("Files", "ReportHTMLTemplate", default=None))
+        report_path = SCCommon.select_file_location("reports/PortfolioValuationReport.html")
         if report_template_path is None:
             self.logger.log_message("No report template configured. Skipping HTML report generation.", "detailed")
             return False
