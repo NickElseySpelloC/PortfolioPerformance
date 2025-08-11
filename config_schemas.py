@@ -167,3 +167,30 @@ class ConfigSchema:
                 },
             },
         }
+
+        self.price_csv_header_config = [
+            {
+                "name": "Symbol",
+                "type": "str",
+                "sort": 2,
+            },
+            {
+                "name": "Date",
+                "type": "date",
+                "format": "%Y-%m-%d",
+                "sort": 1,
+            },
+            {
+                "name": "Name",
+                "type": "str",
+            },
+            {
+                "name": "Currency",
+                "type": "str",
+            },
+            {
+                "name": "Price",
+                "type": "float",
+                "format": ".2f",
+            },
+        ]

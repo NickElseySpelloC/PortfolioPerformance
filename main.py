@@ -25,14 +25,14 @@ def main():
         )
     except RuntimeError as e:
         print(f"Configuration file error: {e}", file=sys.stderr)
-        return
+        sys.exit(1)     # Exit with errorcode 1 so that launch.sh can detect it
 
     # Initialize the SCLogger class
     try:
         logger = SCLogger(config.get_logger_settings())
     except RuntimeError as e:
         print(f"Logger initialisation error: {e}", file=sys.stderr)
-        return
+        sys.exit(1)     # Exit with errorcode 1 so that launch.sh can detect it
 
     logger.log_message("Starting Portfolio Performance app", "summary")
 
@@ -40,7 +40,7 @@ def main():
     logger.register_email_settings(config.get_email_settings())
 
     # Create the PriceDataManager instance and read the price data files
-    price_data = PriceDataManager(config, logger)
+    price_data = PriceDataManager(config, logger, schemas.price_csv_header_config)
 
     # Create the PortfolioManager instance and read the portfolio data file
     portfolio = PortfolioManager(config, logger, price_data)

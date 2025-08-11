@@ -1,9 +1,9 @@
 """Manages the import and processing of portfolio data."""
 
 import csv
+import datetime as dt
 import operator
 import uuid
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import cloudinary
@@ -12,6 +12,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import pandas as pd
+from cloudinary.exceptions import AuthorizationRequired, BadRequest, Error, NotFound
 from dotenv import load_dotenv
 
 # import jinja2
@@ -107,7 +108,7 @@ class PortfolioManager:
         Args:
             data_import (dict): A dictionary containing the import configuration.
         """
-        file_path = Path(data_import.get("DataFile"))
+        file_path = Path(str(data_import.get("DataFile")))
         data_source_name = data_import.get("NamedLocation", "Portfolio")
         data_source_type = data_import.get("LocationType", "sheet")
         min_units_held = self.config.get("Portfolio", "MinUnitsHeld", default=0.01)
@@ -141,7 +142,7 @@ class PortfolioManager:
                     holding = self.new_holding()
                     holding["Symbol"] = entry.get("Symbol", entry.get("Code"))
                     holding["Name"] = entry.get("Name", self.price_data.get_symbol_name(holding["Symbol"]))
-                    holding["ShortDisplayName"] = self.abbreviate_holding_name(holding["Name"], holding["Symbol"])
+                    holding["ShortDisplayName"] = self.abbreviate_holding_name(holding["Name"], holding["Symbol"])  # type: ignore[attr-defined]
                     holding["Class"] = entry.get("Class", "Unknown")
                     holding["Currency"] = entry.get("Currency", "AUD")
                     holding["Units Held"] = entry.get("Units Held", 0.0)
@@ -213,12 +214,13 @@ class PortfolioManager:
             return_str = return_str[:max_length] + "..."
         return return_str
 
-    def value_portfolio(self, mode: str) -> bool:
+    def value_portfolio(self, mode: str, prior_days: int | None = None) -> bool:
         """
         Calculates the total value of the portfolio as at a given date.
 
         Args:
             mode(str): The mode of the valuation, either "Current" or "Prior".
+            prior_days (int, optional): The number of days prior to today to use for the prior valuation. Defaults to the offset set in the configuration.
 
         Returns:
             result (bool): True if the valuation was successful, False otherwise. Also returns the number of price lookup misses.
@@ -228,7 +230,7 @@ class PortfolioManager:
         if mode == "Current":
             self.effective_dates["Current"] = DateHelper.today()
         elif mode == "Prior":
-            offset_days = self.config.get("Portfolio", "PriorValuationDays", default=7)
+            offset_days = self.config.get("Portfolio", "PriorValuationDays", default=7) if prior_days is None else prior_days
             self.effective_dates["Prior"] = DateHelper.today_add_days(-offset_days)
         else:
             self.logger.log_fatal_error(f"Invalid mode '{mode}' specified for portfolio valuation.")
@@ -373,15 +375,17 @@ class PortfolioManager:
         ]
         existing_rows.append(new_record)
 
-        # Sort the rows by date in ascending order
-        existing_rows.sort(key=lambda x: DateHelper.parse_date(x[0]))
+        # Remove rows with invalid dates before sorting
+        existing_rows = [row for row in existing_rows if DateHelper.parse_date(row[0]) is not None]
+        # Sort the rows by date in ascending order, using only valid dates
+        existing_rows.sort(key=lambda x: DateHelper.parse_date(x[0]) or dt.datetime.min)  # noqa: DTZ901
 
         # Write updated CSV
         with self.portfolio_valuation_file.open("w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
 
             # Write header
-            writer.writerow(header)
+            writer.writerow(header)  # type: ignore[list-item]
 
             # Write previous rows (without today's duplicates)
             for row in existing_rows:
@@ -643,9 +647,8 @@ class PortfolioManager:
 
         # Filter to last 365 days
         cutoff_days = self.config.get("HistoryChart", "ChartNumberOfDays", default=365)
-        # cutoff_date = DateHelper.today_add_days(-cutoff_days)
-        # cutoff_date = datetime.combine(cutoff_date, datetime.min.time())
-        cutoff_date = datetime.now() - timedelta(days=cutoff_days)  # noqa: DTZ005
+        # cutoff_date = DateHelper.add_days(DateHelper.now(), -cutoff_days)
+        cutoff_date = dt.datetime.now() - dt.timedelta(days=cutoff_days)  # noqa: DTZ005
         self.df_value_history = df_values[df_values["Date"] >= cutoff_date]
 
         return True
@@ -678,7 +681,7 @@ class PortfolioManager:
                 api_key=self.config.get("HistoryChart", "APIKey"),
                 api_secret=self.config.get("HistoryChart", "APISecret"),
             )
-        except cloudinary.exceptions.Error as e:
+        except Error as e:
             self.logger.log_fatal_error(f"Failed to configure Cloudinary: {e}")
             return False
 
@@ -688,8 +691,8 @@ class PortfolioManager:
 
         # Line plot with branding color
         ax.plot(
-            self.df_value_history["Date"],
-            self.df_value_history["Valuation"],
+            self.df_value_history["Date"],  # type: ignore[index]
+            self.df_value_history["Valuation"],  # type: ignore[index]
             color="#1f77b4", linewidth=2.5, marker="o", markersize=5, label="Value"
         )
 
@@ -737,18 +740,19 @@ class PortfolioManager:
         try:
             upload_result = cloudinary.uploader.upload(image_filename, folder="portfolio_charts/")
             image_url = upload_result["secure_url"]
-        except cloudinary.exceptions.AuthorizationRequired as e:
+        except AuthorizationRequired as e:
             self.logger.log_fatal_error(f"Cloudinary authorization error when uploading chart image: {e}")
-        except cloudinary.exceptions.NotFound as e:
+        except NotFound as e:
             self.logger.log_fatal_error(f"Cloudinary resource not found error when uploading chart image: {e}")
-        except cloudinary.exceptions.BadRequest as e:
+        except BadRequest as e:
             self.logger.log_fatal_error(f"Cloudinary bad request error when uploading chart image: {e}")
-        except cloudinary.exceptions.Error as e:
+        except Error as e:
             error_text = str(e)
             # Find the start of the HTML and truncate before it
             html_start = error_text.find("b'<!DOCTYPE html>")
             if html_start != -1:
                 error_text = error_text[:html_start].strip()
+            self.logger.log_fatal_error(f"Cloudinary error when uploading chart image: {e}")
             self.logger.log_fatal_error(f"Cloudinary error when uploading chart image: {e}")
         else:
             self.logger.log_message(f"Chart image uploaded to Cloudinary: {image_url}", "debug")

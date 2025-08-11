@@ -1,23 +1,24 @@
 """Manages input price data files and provides methods to read and merge them and return a price for a given date."""
 
-import csv
-from datetime import date
+import datetime as dt
 from pathlib import Path
 
-from sc_utility import DateHelper
+from sc_utility import CSVReader, DateHelper
 
 
 class PriceDataManager:
-    def __init__(self, config, logger):
+    def __init__(self, config, logger, header_config):
         """
         Initializes the PriceDataManager with configuration and logger.
 
         Args:
             config: Configuration object containing file paths and settings.
             logger: Logger object for logging messages and errors.
+            header_config (list[dict]): Configuration for the CSV header, including field names and types.
         """
         self.config = config
         self.logger = logger
+        self.csv_header_config = header_config
         self.price_data = []
 
         # Import price data from configured files
@@ -36,40 +37,20 @@ class PriceDataManager:
                 continue
 
             # get the file's last modified date as a date object
-            if DateHelper.get_file_date(file_path) < DateHelper.today_add_days(-max_age) and max_age > 0:
+            if DateHelper.get_file_date(file_path) < DateHelper.today_add_days(-max_age) and max_age > 0:  # type: ignore[call-arg]
                 self.logger.log_fatal_error(f"Price data file {file_path} is older than {max_age} days.")
                 continue
             data = self._read_csv(file_path)
 
-            for entry in data:
-                # Convert the Date column to a date object
-                if "Date" in entry:
-                    entry["Date"] = DateHelper.parse_date(entry["Date"], "%Y-%m-%d")
-                    if entry["Date"] is None:
-                        self.logger.log_message(f"Invalid date value for {entry.get('Symbol')} on {entry.get('Date')}", "error")
-
-                        # Remove this entry from the data if the date is invalid
-                        data.remove(entry)  # noqa: B909
-                        continue
-                # Convert the Price column to a float
-                if "Price" in entry:
-                    try:
-                        entry["Price"] = float(entry["Price"])
-                    except (TypeError, ValueError):
-                        self.logger.log_message(f"Invalid price value for {entry.get('Symbol')} on {entry.get('Date')}", "error")
-                        # Remove this entry from the data if the date is invalid
-                        data.remove(entry)  # noqa: B909
-                        continue
             if data is None:
-                self.logger.log_fatal_error(f"Failed to read price data from {file_path}")
-            else:
-                self.price_data.extend(data)
-                self.logger.log_message(f"Imported price data from {file_path}", "summary")
+                continue
+            self.price_data.extend(data)
+            self.logger.log_message(f"Imported price data from {file_path}", "summary")
 
         # Sort the price data by descending date dand symbol
         self.price_data.sort(key=lambda x: (x.get("Date", ""), x.get("Symbol", "")), reverse=True)
 
-    def _read_csv(self, file_path):
+    def _read_csv(self, file_path) -> list[dict] | None:
         """
         Reads a CSV file and returns its content as a list of dictionaries.
 
@@ -77,22 +58,18 @@ class PriceDataManager:
             file_path (Path): The path to the CSV file to read.
 
         Returns:
-            data (list): A list of dictionaries representing the rows in the CSV file.
+            data (list[dict]): A list of dictionaries representing the rows in the CSV file.
         """
-        data = []
-        if file_path.exists():
-            try:
-                with file_path.open(newline="", encoding="utf-8") as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    data = list(reader)
-            except (FileNotFoundError, csv.Error, OSError) as e:
-                self.logger.log_message(f"Error reading CSV file {file_path}: {e}", "error")
-            else:
-                return data
+        # Create an instance of the CSVReader class and write the new file
+        try:
+            csv_reader = CSVReader(file_path, self.csv_header_config)
+            data = csv_reader.read_csv()
+        except (ImportError, TypeError, ValueError, RuntimeError) as e:
+            self.logger.log_fatal_error(f"Failed to reader CSV price file {file_path}: {e}")
 
-        return None
+        return data
 
-    def get_price_on_date(self, symbol: str, date: date) -> tuple[float | None, str | None]:
+    def get_price_on_date(self, symbol: str, date: dt.date) -> tuple[float | None, str | None]:
         """
         Returns the price for a given date from the imported price data.
 
