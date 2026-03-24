@@ -26,3 +26,8 @@ reports/
 /*.txt
 /*.yaml
 data
+# Added by ggshield
+.cache_ggshield
+configs
+logs
+.env

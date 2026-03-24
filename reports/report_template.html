@@ -200,7 +200,7 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
           <tr>
             <td></td>
             <td align="right" style="text-align:right;">
-              <span class="move-period-label">{{ effective_dates['DaysDifference'] }} day move</span>
+              <span class="move-period-label">{{ reporting_period['LongDescription'] }} move</span>
               <span class="summary-box{% if value['PcntChange'] < 0 %}-loss{% endif %}">
                 {% if value['PcntChange'] >= 0 %} 
                   <img src="https://res.cloudinary.com/dc7dezpqx/image/upload/v1749835196/icon-up-small_oieas2.png" style="vertical-align:bottom">
@@ -215,8 +215,8 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
       </div>
       <table class="summary-table divider">
         <th class="category"></th>
-        <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d {{ reporting_currency_symbol }} Move</td>
-        <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d % Move</td>
+        <td class="summary-table-header">{{ reporting_period['ShortDescription'] }} {{ reporting_currency_symbol }} Move</td>
+        <td class="summary-table-header">{{ reporting_period['ShortDescription'] }} % Move</td>
         {% for asset_class in asset_classes %}
           <tr{% if loop.index0 % 2 == 0 %} style="background-color:#f7f7f7;"{% endif %}>
             <th class="category">{{ asset_class['Class'] }}</th>
@@ -241,11 +241,11 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
         </tr>
         <tr style="border-top:1px solid #eff0f1;">
           <td colspan="2" style="text-align:right; padding-top: 20px; padding-bottom: 20px">
-            <span class="value_label"">Portfolio Value:</span>
+            <span class="value_label">Portfolio Value:</span>
             <span class="summary-box">{{ cost_basis['CurrentStr'] }}</span>
           </td>
           <td style="text-align:right; padding-right: 0px;">
-            <span class="value_label"">Vs Cost Basis:</span>
+            <span class="value_label">Vs Cost Basis:</span>
             {% if cost_basis['Return'] >= 0 %}
               <span class="summary-box">{{ cost_basis['ReturnStr'] }}</span>
             {% else %}
@@ -266,7 +266,7 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
                     <span class="move-label"> Winners</span>
                   </div>
                 </td>
-                <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d % Move</td>
+                <td class="summary-table-header">{{ reporting_period['ShortDescription'] }} % Move</td>
                 <td class="summary-table-header">Value</td>
               </tr>
               {% for entry in winners %}
@@ -293,7 +293,7 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
                   </div>
 
                 </td>
-                <td class="summary-table-header">{{ effective_dates['DaysDifference'] }}d % Move</td>
+                <td class="summary-table-header">{{ reporting_period['ShortDescription'] }} % Move</td>
                 <td class="summary-table-header">Value</td>
               </tr>
               {% for entry in losers %}
@@ -320,6 +320,8 @@ https://cdn-blob.investsmart.com.au/images/email/icon-downX2.png -->
           </tr>
         </table>
       {% endif %}
+      <div class="value_label">Portfolio valuation from {{ reporting_period['StartDateStr'] }} to {{ reporting_period['EndDateStr'] }}</div>
+
       {% if price_misses > 0 %}
         <div class="warning" style="padding-left: 10px;">WARNING: {{price_misses}} price lookup misses occurred during valuation.</div>
       {% endif %}
