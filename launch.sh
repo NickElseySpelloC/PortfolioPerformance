@@ -4,7 +4,7 @@ Application Launcher
 
 Requires Python and UV to be installed
 
-3/4/2026: Change default directory to the script's location, and allow --homedir to override it.
+3/4/2026: Change default directory to the script location, and allow --homedir to override it.
 =========================================================='
 
 # set -euo pipefail
