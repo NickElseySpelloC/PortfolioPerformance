@@ -17,7 +17,8 @@ from dotenv import load_dotenv
 
 # import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateError
-from sc_utility import DateHelper, ExcelReader, SCCommon
+from sc_excel_reader import ExcelReader
+from sc_foundation import DateHelper, SCCommon
 
 
 def currency_thousands(x, _):
@@ -717,7 +718,7 @@ class PortfolioManager:
             # Write previous rows (without today's duplicates)
             for row in existing_rows:
                 # Ensure the first column is a date string
-                row[0] = DateHelper.parse_date(row[0])
+                row[0] = DateHelper.extract(row[0])
                 writer.writerow(row)
 
         self.logger.log_message(f"Wrote valuation at {DateHelper.format(self._get_effective_date(mode), '%Y-%m-%d')} to {self.portfolio_valuation_file}", "detailed")

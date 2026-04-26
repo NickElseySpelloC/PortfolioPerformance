@@ -3,7 +3,7 @@
 import datetime as dt
 from pathlib import Path
 
-from sc_utility import CSVReader, DateHelper
+from sc_foundation import CSVReader, DateHelper
 
 
 class PriceDataManager:

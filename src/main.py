@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from sc_utility import SCCommon, SCConfigManager, SCLogger
+from sc_foundation import SCCommon, SCConfigManager, SCLogger
 
 from config_schemas import ConfigSchema
 from portfolio import PortfolioManager
@@ -80,8 +80,8 @@ Examples:
             sys.exit(1)
         base_dir = homedir.resolve()
 
-        # Set the project root environment variable for use by SC_Utility and other components
-        os.environ["SC_UTILITY_PROJECT_ROOT"] = str(base_dir)
+        # Set the project root environment variable for use by sc_foundation and other components
+        os.environ["SC_FOUNDATION_PROJECT_ROOT"] = str(base_dir)
     else:
         base_dir = Path(SCCommon.get_project_root())
 
