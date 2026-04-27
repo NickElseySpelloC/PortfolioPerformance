@@ -328,15 +328,23 @@ class PortfolioManager:
         # Sort holdings by percentage change
         self.holdings.sort(key=operator.itemgetter("PcntChange"), reverse=True)
         # Flag the top winners
-        for i, entry in enumerate(self.holdings):
+        i = 0
+        for entry in self.holdings:
+            if entry["Symbol"] == "Cash":   # Issue 1: Exclude cash from winners and losers as it can distort the ranking and isn't really a "holding" in the same sense as the stocks
+                continue
             self.winners.append(entry)
-            if i == rank_size - 1:
+            i += 1
+            if i == rank_size:
                 break
 
         # Flag the top losers
-        for i, entry in enumerate(reversed(self.holdings)):
+        i = 0
+        for entry in reversed(self.holdings):
+            if entry["Symbol"] == "Cash":   # Issue 1: Exclude cash from winners and losers as it can distort the ranking and isn't really a "holding" in the same sense as the stocks
+                continue
             self.losers.append(entry)
-            if i == rank_size - 1:
+            i += 1
+            if i == rank_size:
                 break
 
         # Sort holdings by symbol change
